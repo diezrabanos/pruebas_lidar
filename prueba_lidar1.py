@@ -63,9 +63,9 @@ def exprimelidar(las, carpeta):
     troncoresumido=las[24:27]+"_"+las[28:32]
     
 
-source="c:/work/borobia3/unido.las"
-target="c:/work/borobia3/suelo.asc"
-lassuelo="c:/work/borobia3/suelo.las"
+source="c:/work/carpeta/recortado.las"
+target="c:/work/carpeta/suelo.asc"
+lassuelo="c:/work/carpeta/suelo.las"
 print "bien1"
 
 #genero un las nuevo solo con los puntos de suelo, clasificados en el archivo como tal
@@ -110,7 +110,7 @@ outFile.close()
 print "bien6"
 
 
-lasnosuelo="c:/work/borobia3/nosuelo.las"
+lasnosuelo="c:/work/carpeta/nosuelo.las"
 
 #genero un las nuevo solo con los puntos de NO suelo, clasificados en el archivo como tal
 # Open an input file in read mode.
@@ -205,7 +205,7 @@ header+='yllcorner %s\n'% min[1]
 header+='cellsize %s\n'% cell
 header+='NODATA_value %s\n'% NODATA
 
-target="c:/work/borobia3/suelofill2.asc"
+target="c:/work/carpeta/suelofill2.asc"
 with open (target,"wb") as f:
     f.write(header)
     np.savetxt(f,fill,fmt="%1.2f")
@@ -226,6 +226,7 @@ with open (target,"wb") as f:
     f.write(header)
     np.savetxt(f,zsum,fmt="%1.2f")
 
+print "bien 9.1"
 #filtro para rellenar huecos pequenos
 def rellenahuecos(input, output):
     #input=os.path.join(carpeta,troncoresumido+'_'+rasterdeentrada+'4.tif')
@@ -242,15 +243,37 @@ def rellenahuecos(input, output):
     
 #primera vez de rellenar huecos
 input="c:/work/carpeta/suelozavg.asc"
-output="c:/work/borobia3/fillnodata.tif"
+output="c:/work/carpeta/fillnodata.tif"
 rellenahuecos(input, output)
+print "bien 9.2"
+
+#cargo el tif con el suelo que acabo de generar
+
+ 
+
+ 
+#Raster
+fileName = output
+fileInfo = QFileInfo(fileName)
+baseName = fileInfo.baseName()
+rlayer = QgsRasterLayer(fileName, baseName)
+if not rlayer.isValid():
+  print "Layer failed to load"
+ 
+#Add layer
+
+QgsMapLayerRegistry.instance().addMapLayer(rlayer)
+
+
+
 
 #leo los valores del tif del suelo
 from osgeo import gdal
 import os
 import struct
  
-layer = iface.activeLayer()
+#layer = iface.activeLayer()
+layer=rlayer
 provider = layer.dataProvider()
  
 fmttypes = {'Byte':'B', 'UInt16':'H', 'Int16':'h', 'UInt32':'I', 'Int32':'i', 'Float32':'f', 'Float64':'d'}
@@ -289,22 +312,53 @@ print "Promedio = %0.5f" % average
 dataset = None
 
 
-#normalizo los puntos de no suelo, restandoles el suelo de la cuadricula que acabo de generar.
+
+    
+#cargo el tif en un vector porque de la manera anterior no puedo sacar el xyx
+ds = gdal.Open(output)
+myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
+
+
+    
+    
+    
+    #normalizo los puntos de no suelo, restandoles el suelo de la cuadricula que acabo de generar.
 #abro el lasnosuelo
 lasnosuelofile=laspy.file.File(lasnosuelo,mode= "r")
 print "bien 10"
 #recorro todos sus elementos
 i=0
-while i<500:
-    for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
-        print x,y,z
-        i=i+1
+normalizado=np.array([[0,0,0]])
+for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
+    ident=rlayer.dataProvider().identify(QgsPoint(x, y), QgsRaster.IdentifyFormatValue)
+    zsuelo= ident.results()[1]
+
+    #zsuelo=myarray[int(x-x0),int(y0-y)]
+    #print zsuelo
+    if type(zsuelo) not in (int, float):
+        zsuelo=z
+    znormalizada= z-zsuelo
+
+    normalizado=np.append(normalizado, [[x, y, znormalizada]], axis=0)
+    print normalizado  
+    i=i+1
+print i
 #coords = np.vstack((lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z)).transpose()
 #print coords
 """for ex,ey,ez in np.nditer([x.las,y.las,z.las]):
     print ex"""
     
 print "biene 11"
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
