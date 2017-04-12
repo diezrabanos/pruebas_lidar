@@ -327,7 +327,7 @@ myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
 lasnosuelofile=laspy.file.File(lasnosuelo,mode= "r")
 print "bien 10"
 #recorro todos sus elementos
-i=0
+
 normalizado=np.array([[0,0,0]])
 for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
     ident=rlayer.dataProvider().identify(QgsPoint(x, y), QgsRaster.IdentifyFormatValue)
@@ -338,11 +338,21 @@ for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
     if type(zsuelo) not in (int, float):
         zsuelo=z
     znormalizada= z-zsuelo
-
+    #matriz con las x y z de los puntos no clasificados como suelo siendo la z la altura respecto al suelo
     normalizado=np.append(normalizado, [[x, y, znormalizada]], axis=0)
     print normalizado  
-    i=i+1
-print i
+#genero la cuadricula de estudio que tiene que ir variando de 10x10m
+for x,y,z in np.nditer([normalizado[:,0], normalizado[:,1], normalizado[:,2]]):
+    #creo una celda de 2x2 y va cambiando
+    xi=5234500
+    yi=4660402
+    if xi<=x<xi+10 and yi<=y<yi+10:
+        print x,y,z
+        
+
+
+    
+
 #coords = np.vstack((lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z)).transpose()
 #print coords
 """for ex,ey,ez in np.nditer([x.las,y.las,z.las]):
