@@ -163,7 +163,8 @@ print "bien7"
 
 min=las.header.min
 max=las.header.max
-
+print min
+print max
 print "bien8"
 xdist=max[0]-min[0]
 ydist=max[1]-min[1]
@@ -296,8 +297,7 @@ print "Tipo de datos = ", BandType
   
 print "Ejecutando estadisticas de %s" % filename
 print "que se encuentra en %s" % raiz
-print "Ysize " , range(band.YSize)
-print "Xsize " , range(band.XSize)
+
 for y in range(band.YSize):
    
     scanline = band.ReadRaster(0, y, band.XSize, 1, band.XSize, 1, band.DataType)
@@ -344,53 +344,41 @@ for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
     #print normalizado  
 #genero la cuadricula de estudio que tiene que ir variando de 10x10m
 a=[]
-xi=523447
-yi=4660530
-for x,y,z in np.nditer([normalizado[:,0], normalizado[:,1], normalizado[:,2]]):
-    #creo una celda de 10x10 y va cambiando
+#xi=523447
+#yi=4660530
+#creo una celda de 10x10 y va cambiando
+for xi in range(int(min[0]),int(max[0]),10):
+    for yi in range(int(min[1]),int(max[1]),10):
+        for x,y,z in np.nditer([normalizado[:,0], normalizado[:,1], normalizado[:,2]]):
+            if xi<=x<xi+10 and yi<=y<yi+10:
+                a.append(float(z))
+        print "bien 10 bis"
 
 
-    if xi<=x<xi+10 and yi<=y<yi+10:
-        a.append(float(z))
-print "bien 10 bis"
 
 
+        b=np.array(a)
+        #print b imprime todo el listado de puntos de la celda
+        #print b
+        listado=[np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),np.amax(b)]
+        print xi, yi
+        print listado
 
-
-b=np.array(a)
-print b
-
-print np.amax(b)
-print np.amin(b)
-print "percentil 10" 
-print np.percentile(b,10)
-print "percentil 20" 
-print np.percentile(b,20)
-print "percentil 30" 
-print np.percentile(b,30)
-print "percentil 40" 
-print np.percentile(b,40)
-print "percentil 50" 
-print np.percentile(b,50)
-print "percentil 60" 
-print np.percentile(b,60)
-print "percentil 70" 
-print np.percentile(b,70)
-print "percentil 80" 
-print np.percentile(b,80)
-print "percentil 90" 
-print np.percentile(b,90)
-print "percentil 100" 
-print np.percentile(b,100)
-import matplotlib.pyplot as plt
-print "bien 10 ter"
-plt.hist(b, bins=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15])
-
-plt.show()
+        import matplotlib.pyplot as plt
+        print "bien 10 ter"
+        plt.hist(b, bins=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27])
+        
+        plt.title("x"+str(xi)+"y"+str(yi))
+        plt.show()
+        nombrehistograma="c:/work/carpeta/histograma"+str(xi)+str(yi)+".png"
+        plt.savefig(nombrehistograma) 
+        plt.clf()
+        plt.close()
+        a=[]
         
 
 
-    
+
 
 #coords = np.vstack((lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z)).transpose()
 #print coords
