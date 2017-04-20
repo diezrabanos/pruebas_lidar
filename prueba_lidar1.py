@@ -39,28 +39,7 @@ a=["nombre de archivo","extension"]
 canvas = iface.mapCanvas()
 canvas.freeze(True)
 
-#defino la funcion que busca los archivos las o laz que existan y le paso los parametros resultantes del formulario
-def buscalidaryejecuta(carpeta):
-    for base, dirs, files in os.walk(carpeta):
-        carpetas_y_subcarpetas=base
-        archivos=files
-        for archivo in archivos:
-            a=list(os.path.splitext(archivo))
-            extension=a[1].lower()
-            print extension
-            if extension==".laz" or extension==".las":
-                b=os.path.join(base,a[0]+a[1])
-                las = os.path.join(a[0]+a[1])
-                #ejecuto el exprimelidar
-                exprimelidar(las, carpeta)
-                
-#defino la funcion que lo hace todo con un archivo las o laz concreto
-def exprimelidar(las, carpeta):
-    fcstring = ""
-    
-    #defino un par de variables con el nombre del archivo y su abreviatura. Pensado para la denominacion estandar de los archivos LiDAR del PNOA
-    tronco=las[:-4]
-    troncoresumido=las[24:27]+"_"+las[28:32]
+
     
 
 source="c:/work/carpeta/recortado.las"
@@ -328,6 +307,64 @@ myarray = np.array(ds.GetRasterBand(1).ReadAsArray())
 lasnosuelofile=laspy.file.File(lasnosuelo,mode= "r")
 print "bien 10"
 #recorro todos sus elementos
+    
+ #creo una capa de puntos temporal con los resultados
+# create layer
+#from PyQt4.QtCore import QVariant
+fields=QgsFields()
+fields.append(QgsField("min", QVariant.String))
+fields.append(QgsField("per10", QVariant.String))
+fields.append(QgsField("per20", QVariant.String))
+fields.append(QgsField("per30", QVariant.String))
+fields.append(QgsField("per40", QVariant.String))
+fields.append(QgsField("per50", QVariant.String))
+fields.append(QgsField("per60", QVariant.String))
+fields.append(QgsField("per70", QVariant.String))
+fields.append(QgsField("per80", QVariant.String))
+fields.append(QgsField("per90", QVariant.String))
+fields.append(QgsField("per100", QVariant.String))
+
+writer=QgsVectorFileWriter("c:/work/carpeta/puntos.shp","CP1250",fields,QGis.WKBPoint,None,"ESRI Shapefile")
+#vl = QgsVectorLayer("Point", "temporary_points", "memory")
+#pr = vl.dataProvider()
+print "ok creada la capa y los campos"
+
+#funcion que genera una capa de puntos con datos de percentiles
+def generapunto(min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y):
+
+    #vl.startEditing()
+    # add fields
+    #pr.addAttributes([,QgsField("per20", QVariant.Double),QgsField("per30", QVariant.Double),QgsField("per40", QVariant.Double),QgsField("per50", QVariant.Double),QgsField("per60", QVariant.Double),QgsField("per70", QVariant.Double),QgsField("per80", QVariant.Double),QgsField("per90", QVariant.Double),QgsField("per100", QVariant.Double),                    QgsField("x",  QVariant.Int),                    QgsField("y", QVariant.Double)])
+    #vl.updateFields() 
+    # tell the vector layer to fetch changes from the provider
+    #print "ok creados los campos"
+    # add a feature
+    print min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y
+    fet = QgsFeature()
+    fet.setGeometry(QgsGeometry.fromPoint(QgsPoint(x,y)))
+    fet.setAttributes([min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y])
+    writer.addFeature(fet)
+    
+ 
+    #cambio la simbologia
+    symbol = QgsMarkerSymbolV2.createSimple({'name': 'circle', 'color': 'orange','size': '5',})
+    #vl.rendererV2().setSymbol(symbol)
+    #la convierto en shape
+    #cLayer = qgis.utils.iface.mapCanvas().currentLayer()
+    #provider = cLayer.dataProvider()
+    #writer = QgsVectorFileWriter.writeAsVectorFormat( "c:/work/carpeta/puntos.shp", pr.encoding(), pr.fields(),"ESRI Shapefile" )
+    
+    #QgsMapLayerRegistry.instance().addMapLayer(vl)  
+
+    # update layer's extent when new features have been added
+    # because change of extent in provider is not propagated to the layer
+    #vl.updateExtents()
+    #vl.commitChanges()
+    #vl.updateExtents()
+    #canvas = qgis.utils.iface.mapCanvas()
+    #canvas.setExtent(vl.extent())
+    #vl.updateFieldMap()   
+    
 
 normalizado=np.array([[0,0,0]])
 for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
@@ -361,6 +398,7 @@ for xi in range(int(min[0]),int(max[0]),10):
         #print b imprime todo el listado de puntos de la celda
         #print b
         listado=[np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),np.amax(b)]
+        #listado=[0,1,2,3,4,5,6,7,8,9,10,11]
         print xi, yi
         print listado
 
@@ -369,13 +407,15 @@ for xi in range(int(min[0]),int(max[0]),10):
         plt.hist(b, bins=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27])
         
         plt.title("x"+str(xi)+"y"+str(yi))
-        plt.show()
+        #plt.show()
         nombrehistograma="c:/work/carpeta/histograma"+str(xi)+str(yi)+".png"
         plt.savefig(nombrehistograma) 
         plt.clf()
         plt.close()
         a=[]
-        
+        #generapunto(np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),x,y)    
+        print listado[0],listado[1],listado[2],listado[3],listado[4],listado[5],listado[6],listado[7],listado[8],listado[9],listado[10],xi+5,yi+5
+        generapunto(str(listado[0]),str(listado[1]),str(listado[2]),str(listado[3]),str(listado[4]),str(listado[5]),str(listado[6]),str(listado[7]),str(listado[8]),str(listado[9]),str(listado[10]),xi+5,yi+5)
 
 
 
@@ -390,141 +430,29 @@ print "biene 11"
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-def funcionchorra():    
-        print "pasa"
-    
- 
-#ejecuta la funcion que busca los archivos las y laz y a suvez ejecuta la funcion exprimelidar que hace el analisis de la cuadricula
-buscalidaryejecuta(carpeta, crecimiento, fccbaja, fccterrazas, fccmedia, fccalta, hmontebravoe, hmontebravo, hselvicolas, hclaras, hclaras2, hbcminima, hbcdesarrollado, rcclaras, rcextremo, longitudcopaminima, crecimientofcc)
 
-#defino una funcion que une en una capa el resultado de todas las hojas
-def juntoshapes(busca,salida):
-    files=glob.glob(busca)
-    out=os.path.join(carpeta,salida+".shp")
-    entrada=";".join(files)
-    if len(files)>100:
-        lista1=files[:len(files)/2]
-        lista2=files[len(files)/2:]
-        out=os.path.join(carpeta,salida+"1.shp")
-        entrada=";".join(lista1)
-        processing.runalg('saga:mergelayers',entrada,True,True,out)
-        out=os.path.join(carpeta,salida+"2.shp")
-        entrada=";".join(lista2)
-        processing.runalg('saga:mergelayers',entrada,True,True,out)
-    elif len(files) >1 and len(files) <=100:
-        processing.runalg('saga:mergelayers',entrada,True,True,out)
-    elif len(files) ==1:
-        processing.runalg("qgis:saveselectedfeatures",files[0],out)
-    else:
-        pass
-    del(out)
-    del(entrada)
-    del(files)
-    
-#uno en una capa todas las hojas de claras, regeneracion, resalveo y teselas
-juntoshapes(os.path.join(carpeta,"p","*clara3.shp"),"Clara_merged")
-juntoshapes(os.path.join(carpeta,"p","*regeneracion3.shp"),"Regeneracion_merged")
-juntoshapes(os.path.join(carpeta,"p","*resalveo3.shp"),"Resalveo_merged")
-juntoshapes(os.path.join(carpeta,"p","*suma.shp"),"Teselas_merged")
 
+
+del writer
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+"""    
+   
 #elimino las capas que he cargado durante el proceso
 capas =QgsMapLayerRegistry.instance().mapLayers()
 for capa in capas:
     if capa not in capasoriginales:
         QgsMapLayerRegistry.instance().removeMapLayers( [capa] )
-del(capas)
+del(capas)"""
         
-#cargo las capas finales
-teselas=QgsVectorLayer(os.path.join(carpeta,'Teselas_merged.shp'),"Teselas","ogr")
-teselas1=QgsVectorLayer(os.path.join(carpeta,'Teselas_merged_proyectado1.shp'),"Teselas Proyectado1","ogr")
-teselas2=QgsVectorLayer(os.path.join(carpeta,'Teselas_merged_proyectado2.shp'),"Teselas Proyectado2","ogr")
-clara=QgsVectorLayer(os.path.join(carpeta,'Clara_merged.shp'),"Clara","ogr")
-regeneracion=QgsVectorLayer(os.path.join(carpeta,'Regeneracion_merged.shp'),"Regeneracion","ogr")
-resalveo=QgsVectorLayer(os.path.join(carpeta,'Resalveo_merged.shp'),"Resalveo","ogr")
-
-#aplico simbologia a estas capas, si existen
-try:
-    symbolsclara=clara.rendererV2().symbols()
-    sym=symbolsclara[0]
-    sym.setColor(QColor.fromRgb(255,0,0))
-    QgsMapLayerRegistry.instance().addMapLayer(clara)
-except: 
-  pass
-
-try:
-    symbolsregeneracion=regeneracion.rendererV2().symbols()
-    sym=symbolsregeneracion[0]
-    sym.setColor(QColor.fromRgb(0,255,0))
-    QgsMapLayerRegistry.instance().addMapLayer(regeneracion)
-except: 
-  pass
-
-try:
-    symbolsresalveo=resalveo.rendererV2().symbols()
-    sym=symbolsresalveo[0]
-    sym.setColor(QColor.fromRgb(0,0,255))
-    QgsMapLayerRegistry.instance().addMapLayer(resalveo)
-except: 
-  pass
-
-coloresteselas={"1":("solid","255,255,204,255","Raso o Regenerado","001"),"2":("solid","255,255,0,255","Menor (Monte Bravo)","002"),"3":("vertical","255,192,0,255","Poda Baja (y Clareo) en Bajo Latizal (Posibilidad si C elevada)","004"),"4":("solid","255,204,153,255","Bajo Latizal Desarrollado","005"),"51":("b_diagonal","255,0,255,255","Resalveo en Latizal poco desarrollado","006"),"52":("f_diagonal","255,0,0,255","Resalveo en Latizal","007"),"61":("solid","255,153,255,255","Latizal poco desarrollado Tratado","008"),"62":("solid","255,124,128,255","Latizal Tratado","009"),"7":("solid","204,255,153,255","Alto Latizal Claro","010"),"81":("b_diagonal","146,208,80,255","Poda Alta y Clara Suave en Latizal","011"),"82":("b_diagonal","51,204,204,255","Poda Alta y Clara Suave en Monte Desarrollado","015"),"9":("f_diagonal","0,176,80,255","Primera Clara y Poda Alta","012"),"10":("solid","102,255,153,255","Alto Latizal Aclarado","013"),"111":("solid","102,255,255,255","Fustal Claro","014"),"112":("solid","139,139,232,255","Fustal Maduro Claro","018"),"121":("f_diagonal","0,176,255,240","Clara en Fustal","016"),"122":("b_diagonal","65,51,162,255","Clara en Fustal Maduro","019"),"13":("cross","0,112,192,255","Clara Urgente en Fustal Maduro","020"),"141":("solid","204,236,255,255","Fustal Aclarado","017"),"142":("solid","166,166,207,255","Fustal Maduro Aclarado","021"),"15":("horizontal","112,48,160,255","Posibilidad de Regeneracion","022"),"17":("solid","orange","Bajo Latizal No Concurrente o Latizal Encinar no Denso","003")}
-
-#ordeno los elementos de teselas
-ordenados=coloresteselas.items()
-ordenados.sort(key=lambda clave: str(clave[1][3]))
-
-categorias=[]
-
-for clase,(relleno,color, etiqueta,orden) in ordenados:    
-    props={'style':relleno, 'color':color, 'style_border':'no'}
-    sym=QgsFillSymbolV2.createSimple(props)
-    categoria=QgsRendererCategoryV2(clase,sym,etiqueta)
-    categorias.append(categoria)
-
-field="DN"
-renderer=QgsCategorizedSymbolRendererV2(field,categorias)
-teselas.setRendererV2(renderer)
-QgsMapLayerRegistry.instance().addMapLayer(teselas)
-
-categorias1=[]
-for clase,(relleno,color, etiqueta,orden) in ordenados:    
-    props={'style':relleno, 'color':color, 'style_border':'no'}
-    sym=QgsFillSymbolV2.createSimple(props)
-    categoria1=QgsRendererCategoryV2(clase,sym,etiqueta)
-    categorias1.append(categoria1)
-
-field="DN"
-renderer=QgsCategorizedSymbolRendererV2(field,categorias1)
-teselas1.setRendererV2(renderer)
-QgsMapLayerRegistry.instance().addMapLayer(teselas1)
-
-categorias2=[]
-for clase,(relleno,color, etiqueta,orden) in ordenados:    
-    props={'style':relleno, 'color':color, 'style_border':'no'}
-    sym=QgsFillSymbolV2.createSimple(props)
-    categoria2=QgsRendererCategoryV2(clase,sym,etiqueta)
-    categorias2.append(categoria2)
-
-field="DN"
-renderer=QgsCategorizedSymbolRendererV2(field,categorias2)
-teselas2.setRendererV2(renderer)
-QgsMapLayerRegistry.instance().addMapLayer(teselas2)
 
 #repinto todo refrescando la vista
 canvas.freeze(False)
