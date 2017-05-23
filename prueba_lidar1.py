@@ -24,6 +24,8 @@ import numpy as np
 import laspy
 import copy
 
+#para sacar los histogramas
+import matplotlib.pyplot as plt
 
 
 
@@ -316,21 +318,43 @@ fields.append(QgsField("min", QVariant.String))
 fields.append(QgsField("per10", QVariant.String))
 fields.append(QgsField("per20", QVariant.String))
 fields.append(QgsField("per30", QVariant.String))
-fields.append(QgsField("per40", QVariant.String))
+fields.append(QgsField("per10090", QVariant.String))
 fields.append(QgsField("per50", QVariant.String))
-fields.append(QgsField("per60", QVariant.String))
-fields.append(QgsField("per70", QVariant.String))
-fields.append(QgsField("per80", QVariant.String))
+fields.append(QgsField("ultimet", QVariant.String))
+fields.append(QgsField("ult2met", QVariant.String))
+fields.append(QgsField("relacion", QVariant.String))
 fields.append(QgsField("per90", QVariant.String))
 fields.append(QgsField("per100", QVariant.String))
+fields.append(QgsField("enlace", QVariant.String))
 
 writer=QgsVectorFileWriter("c:/work/carpeta/puntos.shp","CP1250",fields,QGis.WKBPoint,None,"ESRI Shapefile")
 #vl = QgsVectorLayer("Point", "temporary_points", "memory")
 #pr = vl.dataProvider()
 print "ok creada la capa y los campos"
 
+#funcion para hacer regresion polinomica y  que nos de el r2
+# Polynomial Regression
+def polyfit2(x, y, degree):
+    results = {}
+
+    coeffs = np.polyfit(x, y, degree)
+
+     # Polynomial Coefficients
+    results['polynomial'] = coeffs.tolist()
+
+    # r-squared
+    p = np.poly1d(coeffs)
+    # fit values, and mean
+    yhat = p(x)                         # or [p(z) for z in x]
+    ybar = np.sum(y)/len(y)          # or sum(y)/len(y)
+    ssreg = np.sum((yhat-ybar)**2)   # or sum([ (yihat - ybar)**2 for yihat in yhat])
+    sstot = np.sum((y - ybar)**2)    # or sum([ (yi - ybar)**2 for yi in y])
+    results['determination'] = ssreg / sstot
+
+    return results
+
 #funcion que genera una capa de puntos con datos de percentiles
-def generapunto(min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y):
+def generapunto(min,per10,per20,per30,per10090,per50,ultimet,r2,relacion,per90,per100,nombrehistograma,x,y):
 
     #vl.startEditing()
     # add fields
@@ -339,10 +363,10 @@ def generapunto(min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100
     # tell the vector layer to fetch changes from the provider
     #print "ok creados los campos"
     # add a feature
-    print min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y
+    #print min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y
     fet = QgsFeature()
     fet.setGeometry(QgsGeometry.fromPoint(QgsPoint(x,y)))
-    fet.setAttributes([min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100,x,y])
+    fet.setAttributes([min,per10,per20,per30,per10090,per50,ultimet,r2,relacion,per90,per100,nombrehistograma,x,y])
     writer.addFeature(fet)
     
  
@@ -365,65 +389,170 @@ def generapunto(min,per10,per20,per30,per40,per50,per60,per70,per80,per90,per100
     #canvas.setExtent(vl.extent())
     #vl.updateFieldMap()   
     
-
-normalizado=np.array([[0,0,0]])
-for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
-    ident=rlayer.dataProvider().identify(QgsPoint(x, y), QgsRaster.IdentifyFormatValue)
-    zsuelo= ident.results()[1]
+try:
+    normalizado=np.array([[0,0,0]])
+    for x,y,z in np.nditer([lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z]):
+        ident=rlayer.dataProvider().identify(QgsPoint(x, y), QgsRaster.IdentifyFormatValue)
+        zsuelo= ident.results()[1]
 
     #zsuelo=myarray[int(x-x0),int(y0-y)]
     #print zsuelo
-    if type(zsuelo) not in (int, float):
-        zsuelo=z
-    znormalizada= z-zsuelo
+        if type(zsuelo) not in (int, float):
+            zsuelo=z
+        znormalizada= z-zsuelo
     #matriz con las x y z de los puntos no clasificados como suelo siendo la z la altura respecto al suelo
-    normalizado=np.append(normalizado, [[x, y, znormalizada]], axis=0)
+        normalizado=np.append(normalizado, [[x, y, znormalizada]], axis=0)
     #print normalizado  
 #genero la cuadricula de estudio que tiene que ir variando de 10x10m
-a=[]
+    a=[]
 #xi=523447
 #yi=4660530
 #creo una celda de 10x10 y va cambiando
-for xi in range(int(min[0]),int(max[0]),10):
-    for yi in range(int(min[1]),int(max[1]),10):
-        for x,y,z in np.nditer([normalizado[:,0], normalizado[:,1], normalizado[:,2]]):
-            if xi<=x<xi+10 and yi<=y<yi+10:
-                a.append(float(z))
-        print "bien 10 bis"
+    for xi in range(int(min[0]),int(max[0]),10):
+        for yi in range(int(min[1]),int(max[1]),10):
+            for x,y,z in np.nditer([normalizado[:,0], normalizado[:,1], normalizado[:,2]]):
+                if xi<=x<xi+10 and yi<=y<yi+10:
+                    a.append(float(z))
+            print "bien 10 bis"
 
 
-
-
-        b=np.array(a)
-        #print b imprime todo el listado de puntos de la celda
-        #print b
-        listado=[np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),np.amax(b)]
-        #listado=[0,1,2,3,4,5,6,7,8,9,10,11]
-        print xi, yi
-        print listado
-
-        import matplotlib.pyplot as plt
-        print "bien 10 ter"
-        plt.hist(b, bins=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27])
         
-        plt.title("x"+str(xi)+"y"+str(yi))
+
+            b=np.array(a)
+            #print b imprime todo el listado de puntos de la celda
+            print "listado completo de puntos"
+            print b
+            
+            #saco el numero de puntos del ultimo medio metro
+            ultimomediometro=np.amax(b)-0.35
+            c=[]
+            for punto in b:
+                if punto>=ultimomediometro:
+                    c.append(punto)
+            nptosultimomediometro= len(c)
+            #saco el numero de puntos de los ultimo metro
+            ultimometro=np.amax(b)-0.70
+            d=[]
+            for punto in b:
+                if ultimomediometro>punto>=ultimometro:
+                    d.append(punto)
+            nptosultimometro= len(d)
+            #saco el numero de puntos de los ultimo metro
+            ultimometroymedio=np.amax(b)-1.05
+            e=[]
+            for punto in b:
+                if ultimometro>punto>=ultimometroymedio:
+                    e.append(punto)
+            nptosultimometroymedio= len(e)
+            #saco el numero de puntos de los ultimos 2 metros
+            ultimos2metros=np.amax(b)-1.40
+        
+            f=[]
+            for punto in b:
+                if ultimometroymedio>punto>=ultimos2metros:
+                    f.append(punto)
+            nptosultimos2metros= len(f)
+        
+            ultimos2metrosypico=np.amax(b)-1.75
+            h=[]
+            for punto in b:
+                if ultimos2metros>punto>=ultimos2metrosypico:
+                    h.append(punto)
+            nptosultimos2metrosypico= len(h)
+        
+            numerodepuntos=[nptosultimomediometro,nptosultimometro,nptosultimometroymedio,nptosultimos2metros,nptosultimos2metrosypico]
+            rango=[ultimomediometro,ultimometro,ultimometroymedio,ultimos2metros,ultimos2metrosypico]
+            alturaaa=np.amax(b)-1.50
+            g=[]
+            for punto in b:
+                if punto>=alturaaa:
+                    g.append(punto)
+                
+                
+            lenalturaaa= len(g)
+            yyy=numerodepuntos
+            xxx=rango
+ 
+            resultado=np.polyfit(xxx,yyy,2)
+            resultado2=polyfit2(xxx,yyy,2)
+            f_resultado=np.poly1d(resultado)
+            print xi, yi
+            print f_resultado
+            print b
+        #print listado
+            print "resultado"
+
+            print resultado
+        #print str(nptosultimomediometro)+"_"+str(  nptosultimometro )+"_"+str( nptosultimometroymedio  )+"_"+str(nptosultimos2metros)           
+            
+        
+
+
+
+
+        
+
+
+
+
+
+        
+        
+
+        
+            relacion=0.00
+
+            relacion =str(resultado2['polynomial'][0])
+            print relacion
+            #genero un histograma
+            r2=str(resultado2['determination'])
+            print "r2"+str(r2)[0]
+            #listado=[np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),np.amax(b)]
+        
+            listado=[np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,90)-np.percentile(b,100),np.percentile(b,50),nptosultimometro,r2,relacion,np.percentile(b,90),np.percentile(b,100),np.amax(b)]
+            print "bien 10 ter"
+        
+            
+            plt.hist(b, bins=[0,0.5,1.0,1.5,2.0,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15,15.5,16,16.5,17,17.5,18,18.5,19,19.5,20,20.5,21,21.5,22,22.5,23,23.5,24,24.5,25,25.5,26,26.5,27])
+        
+            plt.title("x"+str(xi)+"y"+str(yi))
+            print "bien 10 quart"
         #plt.show()
-        nombrehistograma="c:/work/carpeta/histograma"+str(xi)+str(yi)+".png"
-        plt.savefig(nombrehistograma) 
-        plt.clf()
-        plt.close()
-        a=[]
-        #generapunto(np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),x,y)    
-        print listado[0],listado[1],listado[2],listado[3],listado[4],listado[5],listado[6],listado[7],listado[8],listado[9],listado[10],xi+5,yi+5
-        generapunto(str(listado[0]),str(listado[1]),str(listado[2]),str(listado[3]),str(listado[4]),str(listado[5]),str(listado[6]),str(listado[7]),str(listado[8]),str(listado[9]),str(listado[10]),xi+5,yi+5)
+            nombrehistograma="c:/work/carpeta/histograma"+str(xi)+str(yi)+".png"
+            plt.savefig(nombrehistograma) 
+            plt.clf()
+            plt.close()
+            
+            #genero una imagen con las z
+
+            plt.plot(xxx, yyy, 'ro')
+ #          xx=np.arange(0,27,1)
+            print "bien 10 cinc"
+            nuevasx=np.array([np.amax(b),np.amax(b)-0.35,np.amax(b)-0.7,np.amax(b)-1.05,np.amax(b)-1.4,np.amax(b)-1.75])
+            print nuevasx
+            plt.plot(nuevasx,f_resultado(nuevasx))
+            print "bien 10 six"    
+            #plt.axis([0, 6, 0, 20])
+            #plt.show()
+            plt.title("x"+str(xi)+"y"+str(yi)+" "+str(relacion)+"_"+str(r2))
+            #plt.show()
+            nombrearchivo="c:/work/carpeta/picota"+str(xi)+str(yi)+".png"
+            plt.savefig(nombrearchivo) 
+            plt.clf()
+            plt.close()
+            print "bien 10 sev"    
+            a=[]
+                #generapunto(np.amin(b),np.percentile(b,10),np.percentile(b,20),np.percentile(b,30),np.percentile(b,40),np.percentile(b,50),np.percentile(b,60),np.percentile(b,70),np.percentile(b,80),np.percentile(b,90),np.percentile(b,100),x,y)    
+            #print listado[0],listado[1],listado[2],listado[3],listado[4],listado[5],listado[6],listado[7],listado[8],listado[9],listado[10],xi+5,yi+5
+        
+            generapunto(str(listado[0]),str(listado[1]),str(listado[2]),str(listado[3]),str(listado[4]),str(listado[5]),str(listado[6]),str(listado[7]),str(listado[8]),str(listado[9]),str(listado[10]),nombrehistograma,xi+5,yi+5)
+except:
+    pass
 
 
 
 
-#coords = np.vstack((lasnosuelofile.x, lasnosuelofile.y, lasnosuelofile.z)).transpose()
-#print coords
-"""for ex,ey,ez in np.nditer([x.las,y.las,z.las]):
-    print ex"""
+
     
 print "biene 11"
 
